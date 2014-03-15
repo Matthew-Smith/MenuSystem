@@ -1,0 +1,12 @@
+* {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+canvas {
+    position: absolute;
+	background: -webkit-linear-gradient(top, #4c4c4c 0%,#474747 26%,#000000 69%,#111111 83%,#131313 100%);
+	background: -moz-linear-gradient(top, #4c4c4c 0%,#474747 26%,#000000 69%,#111111 83%,#131313 100%);
+}
