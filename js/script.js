@@ -19,9 +19,12 @@ var currentlyPressedKeys = {};
 var pMatrix = mat4.create();
 var mvMatrix = mat4.create();
 var previousTime = 0;
-var showMenu = false;
+var showMenu = true;
 var menuEntries = [];
+var videoPlane;
+var videoTint;
 var selector;
+var transitionTimers = [];
 
 
 // The Vertex shader to use
@@ -57,8 +60,9 @@ var selectorVertShader =    "attribute vec3 aVertexPosition;\n"+
 var selectorFragShader =    "#ifdef GL_ES\n"+
                             "precision highp float;\n"+
                             "#endif\n"+
+                            "uniform vec4 uColor;\n"+
                             "void main(void) {\n"+
-                            "   gl_FragColor = vec4(0.0, 0.7, 0.6, 0.4);\n"+
+                            "   gl_FragColor = uColor;\n"+
                             "}\n";
 
 /**
@@ -77,19 +81,15 @@ function initWebGl() {
     if (! gl) {
         alert("Can`t initialise WebGL, not supported"); // webGL isn"t supported in the browser
     }
+    initVideo();
     initMenu();
     initShaders();
-    selector = new Selector(gl);
-    selector.initObjectBuffers(gl);
-    selector.position = menuEntries[selected].position.slice(0);
-    selector.positionDest = menuEntries[selected].position.slice(0);
-    selector.scale = menuEntries[selected].scale.slice(0);
-    selector.scaleDest = menuEntries[selected].scale.slice(0);
+    initSelector();
 
     gl.enable(gl.DEPTH_TEST); //enable depth buffering
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.clearColor(0.1,0.1,0.1,1.0)
+    gl.clearColor(0.1,0.1,0.1,1.0);
     //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 
     document.onkeydown = handleKeyDown; //set up the keyboard callback
@@ -162,6 +162,8 @@ function initShaders() {
     gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
     shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
 
+    selectorProgram.colorUniform = gl.getUniformLocation(selectorProgram, "uColor");
+
     // Set up the Matrix shaderProgram uniforms
     shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
     shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
@@ -170,13 +172,14 @@ function initShaders() {
 }
 
 function initMenu() {
-    var entryNames = ["SETTINGS", "APPS", "GEORGE", "LIVE TV", "RECORDINGS", "TV SHOWS", "SEARCH"];
-    var subEntryNames = [[],["img/netflix.png", "img/youtube.png"],["FAMILY", "SOPHIE","OPTIONS"],["GUIDE", "WHAT'S ON"],
+    var entryNames = ["SETTINGS", "APPS", "MATTHEW", "LIVE TV", "RECORDINGS", "TV SHOWS", "SEARCH"];
+    var subEntryNames = [[],["img/netflix.png", "img/youtube.png", "img/facebook.png", "img/twitter.png"],["FAMILY", "ESPIAL","OPTIONS"],["GUIDE", "WHAT'S ON"],
                          ["RECENT", "SETUP"],["POPULAR", "FAVORITES"],["IRON MAN", "SUITS", "NETFLIX", "CLEAR RECENT"]];
     for(var i=0;i<entryNames.length;i++) {
         menuEntries[i] = new MenuEntry(gl, entryNames[i]);
         menuEntries[i].initObjectBuffers(gl);
-        menuEntries[i].position = [-3.25+i*1.03,-3,-1.0];
+        menuEntries[i].position = [-3.25+i*1.03,-2,-1.0];
+        menuEntries[i].positionDest = [-3.25+i*1.03,-2,-1.0];
 
         createMenuEntryTexture(gl, menuEntries[i], icon_sources[i], entryNames[i]); 
 
@@ -195,6 +198,38 @@ function initMenu() {
             }
         }
     }
+}
+
+function initSelector() {
+    selector = new Selector(gl);
+    selector.initObjectBuffers(gl);
+    selector.position = menuEntries[selected].position.slice(0);
+    selector.positionDest = menuEntries[selected].position.slice(0);
+    selector.scale = menuEntries[selected].scale.slice(0);
+    selector.scaleDest = menuEntries[selected].scale.slice(0);
+    selector.color = [0.0, 0.7, 0.6, 0.4];
+    selector.colorDest = [0.0, 0.7, 0.6, 0.4];
+}
+
+function initVideo() {
+    videoPlane = new VideoPlane(gl);
+    videoPlane.initObjectBuffers(gl);
+    
+    var file = new Image();
+    file.crossOrigin = "";
+    file.onload = function() {
+        videoPlane.handleLoadedTexture(gl, file);
+    };
+    file.src = "img/rabbit.png";
+
+    videoTint = new Selector(gl);
+    videoTint.initObjectBuffers(gl);
+    videoTint.position = [-5.0,5.0,-5.0];
+    videoTint.positionDest = videoTint.position;
+    videoTint.scale =  [10.0,20.0,1.0];
+    videoTint.scaleDest = videoTint.scale;
+    videoTint.color = [0.0, 0.0, 0.0, 0.7];
+    videoTint.colorDest = [0.0, 0.0, 0.0, 0.7];
 }
 
 function endsWith(str, suffix) {
@@ -232,63 +267,136 @@ function handleKeyUp(event) {
  * These are the deferred tasks from the key handle callbacks.
  */
 function handleKeys() {
-    if (currentlyPressedKeys[37]) { // Left cursor key
-        if(selected>0) {
-            menuEntries[selected].selected = false;
-            selected -= 1;
-            subSelected=-1;
-            selector.positionDest = menuEntries[selected].position.slice(0);
-            selector.position = menuEntries[selected].position.slice(0);
-            selector.scaleDest = menuEntries[selected].scale.slice(0);
-            menuEntries[selected].selected = true;
-        } 
-        currentlyPressedKeys[37] = false; // to ensure only one button press happens
-    }
-    if (currentlyPressedKeys[39]) { // Right cursor key
-        if(selected<menuEntries.length-1) {
-            menuEntries[selected].selected = false;
-            selected += 1;
-            subSelected=-1;
-            selector.positionDest = menuEntries[selected].position.slice(0);
-            selector.position = menuEntries[selected].position.slice(0);
-            selector.scaleDest = menuEntries[selected].scale.slice(0);
-            menuEntries[selected].selected = true;
-        } 
-        currentlyPressedKeys[39] = false;
-    }
-    if (currentlyPressedKeys[38]) { // Up cursor key
-        if(subSelected<menuEntries[selected].subEntries.length-1 && menuEntries[selected].subEntries.length > 0) {
-            subSelected += 1;
-            selector.positionDest = menuEntries[selected].subEntries[subSelected].position.slice(0);
-            selector.scaleDest = menuEntries[selected].subEntries[subSelected].scale.slice(0);
-        } 
-        currentlyPressedKeys[38] = false;
-    }
-    if (currentlyPressedKeys[40]) { // Down cursor key
-        if(subSelected>0 && menuEntries[selected].subEntries.length > 0) {
-            subSelected -= 1;
-            selector.positionDest = menuEntries[selected].subEntries[subSelected].position.slice(0);
-            selector.scaleDest = menuEntries[selected].subEntries[subSelected].scale.slice(0);
-        } 
-        else if(subSelected==0) {    
-            subSelected = -1;        
-            selector.positionDest = menuEntries[selected].position.slice(0);
-            selector.scaleDest = menuEntries[selected].scale.slice(0);
+    if(showMenu) {
+        if (currentlyPressedKeys[38]) { // Up cursor key
+            handleUp();
+            currentlyPressedKeys[38] = false;
         }
-        currentlyPressedKeys[40] = false;
+        if (currentlyPressedKeys[40]) { // Down cursor key
+            handleDown();
+            currentlyPressedKeys[40] = false;
+        }
+        if (currentlyPressedKeys[37]) { // Left cursor key
+            handleLeft();
+            currentlyPressedKeys[37] = false;
+        }
+        if (currentlyPressedKeys[39]) { // Right cursor key
+            handleRight();
+            currentlyPressedKeys[39] = false;
+        }
     }
-    if (currentlyPressedKeys[13]) { // Enter key
+    if (currentlyPressedKeys[27]) { // Esc key
         showMenu = false; // stop showing the menu
-        currentlyPressedKeys[13] = false;
-    }
-    if (currentlyPressedKeys[27]) { // Enter key
-        showMenu = false; // stop showing the menu
+        transitionOut();
         currentlyPressedKeys[27] = false;
     }
-    if (currentlyPressedKeys[77]) { // m key key
+    if (currentlyPressedKeys[77]) { // m key
         showMenu = !showMenu; // toggle showing the menu
+        var dest =  selector.position.slice(0); 
+        subSelected = -1;
+        if(showMenu) {
+            transitionIn();
+        } else {
+            transitionOut();
+        }
         currentlyPressedKeys[77] = false;
     }
+}
+
+function transitionIn() {
+    videoTint.colorDest[3]=0.7;
+    showMenu = false; //set inactive until it has animated in, this stops the selection from being off
+    for(var i=0;i<transitionTimers.length;i++) {
+        clearTimeout(transitionTimers[i]);
+    }
+    transitionTimers[1] = setTimeout(function() { menuEntries[3].positionDest[1]=-2; }, 1);
+    transitionTimers[2] = setTimeout(function() { menuEntries[2].positionDest[1]=-2; }, 200);
+    transitionTimers[3] = setTimeout(function() { menuEntries[4].positionDest[1]=-2; }, 200);
+    transitionTimers[4] = setTimeout(function() { menuEntries[1].positionDest[1]=-2; }, 400);
+    transitionTimers[5] = setTimeout(function() { menuEntries[5].positionDest[1]=-2; }, 400);
+    transitionTimers[6] = setTimeout(function() { menuEntries[0].positionDest[0]=-3.25+0*1.03;}, 500);
+    transitionTimers[7] = setTimeout(function() { menuEntries[6].positionDest[0]=-3.25+6*1.03; }, 500);
+    transitionTimers[8] = setTimeout(function() { selector.positionDest[1]=-2; selector.scaleDest=menuEntries[selected].scale.slice(0)}, 700);
+    transitionTimers[0] = setTimeout(function() { menuEntries[selected].selected = true; showMenu = true;}, 1000); //bring up the subMenu last so it doesn't catch the entry in movement
+            
+}
+
+function transitionOut() {
+    videoTint.colorDest[3]=0.0;
+    menuEntries[selected].selected = false; //hide the subMenu as fast as possible
+    for(var i=0;i<transitionTimers.length;i++) {
+        clearTimeout(transitionTimers[i]);
+    }
+    transitionTimers[0] = setTimeout(function() { menuEntries[selected].selected = false; }, 0); //hide the subMenu as fast as possible
+    transitionTimers[1] = setTimeout(function() { menuEntries[3].positionDest[1]=-6; }, 100);
+    transitionTimers[2] = setTimeout(function() { menuEntries[2].positionDest[1]=-6; }, 150);
+    transitionTimers[3] = setTimeout(function() { menuEntries[4].positionDest[1]=-6; }, 150);
+    transitionTimers[4] = setTimeout(function() { menuEntries[1].positionDest[1]=-6; }, 200);
+    transitionTimers[5] = setTimeout(function() { menuEntries[5].positionDest[1]=-6; }, 200);
+    transitionTimers[6] = setTimeout(function() { menuEntries[0].positionDest[0]=-7; }, 200);
+    transitionTimers[7] = setTimeout(function() { menuEntries[6].positionDest[0]=7; }, 200);
+    transitionTimers[8] = setTimeout(function() { selector.positionDest[1]=-6; }, 1);
+}
+
+function handleDown() {
+    if(subSelected>0 && menuEntries[selected].subEntries.length > 0) {
+        subSelected -= 1;
+        selector.positionDest = menuEntries[selected].subEntries[subSelected].positionDest.slice(0);
+        selector.scaleDest = menuEntries[selected].subEntries[subSelected].scaleDest.slice(0);
+    } 
+    else if(subSelected==0) {    
+        subSelected = -1;        
+        selector.positionDest = menuEntries[selected].position.slice(0);
+        selector.scaleDest = menuEntries[selected].scale.slice(0);
+    }
+}
+
+function handleUp() {
+    if(subSelected<menuEntries[selected].subEntries.length-1 && menuEntries[selected].subEntries.length > 0) {
+        subSelected += 1;
+        selector.scaleDest = menuEntries[selected].subEntries[subSelected].scaleDest.slice(0);
+    } 
+}
+
+function handleLeft() {
+    if(selected>0) {
+        menuEntries[selected].selected = false;
+        selected -= 1;
+        subSelected=-1;
+        selector.scaleDest = menuEntries[selected].scale.slice(0);
+        menuEntries[selected].selected = true;
+
+        for(var i=selected+1; i<menuEntries.length; i++) {
+            bounce(i, -0.4);
+        }
+        bounce(selected,0.1);
+        for(var i=selected-1; i>=0; i--) {
+            bounce(i, 0.2);
+        }
+    } 
+}
+
+function handleRight() {
+    if(selected<menuEntries.length-1) {
+        menuEntries[selected].selected = false;
+        selected += 1;
+        subSelected=-1;
+        selector.scaleDest = menuEntries[selected].scale.slice(0);
+        menuEntries[selected].selected = true;
+        
+        for(var i=selected+1; i<menuEntries.length; i++) {
+            bounce(i, -0.2);
+        }
+        bounce(selected, -0.1);
+        for(var i=selected-1; i>=0; i--) {
+            bounce(i, 0.4);
+        }
+    } 
+}
+
+function bounce(i, value) {
+        menuEntries[i].positionDest[0] += -value;
+        setTimeout(function() { menuEntries[i].positionDest[0] +=value; }, 200);
 }
 
 /**
@@ -298,16 +406,16 @@ function drawScene() {
     gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(shaderProgram);
-    mat4.ortho(pMatrix, -5, 5, -5, 5, -1, 100);
+    mat4.ortho(pMatrix, -5, 5, -3.375, 3.375, -1, 100); 
 
-    if(showMenu) {
-        for (var i=0;i<menuEntries.length;i++) { 
-            menuEntries[i].draw(gl, shaderProgram, pMatrix, mvMatrix);
-        }
-        gl.useProgram(selectorProgram);
-        selector.draw(gl, selectorProgram, pMatrix, mvMatrix);   
+    videoPlane.draw(gl, shaderProgram, pMatrix, mvMatrix);
+
+    for (var i=0;i<menuEntries.length;i++) { 
+        menuEntries[i].draw(gl, shaderProgram, pMatrix, mvMatrix);
     }
-    
+    gl.useProgram(selectorProgram);
+    videoTint.draw(gl, selectorProgram, pMatrix, mvMatrix);
+    selector.draw(gl, selectorProgram, pMatrix, mvMatrix); 
 }
 
 /**
@@ -320,7 +428,22 @@ function animate() {
         for (var i=0;i<menuEntries.length;i++) {
             menuEntries[i].animate(elapsed);
         }
+        if(showMenu) {
+            if (subSelected == -1) {
+                selector.position[0] = menuEntries[selected].position[0];
+                selector.positionDest[0] = menuEntries[selected].position[0];
+                selector.position[1] = menuEntries[selected].positionDest[1];
+                selector.positionDest[1] = menuEntries[selected].position[1];
+                selector.scaleDest = menuEntries[selected].scaleDest.slice(0);
+            } else {
+                selector.positionDest[0] = menuEntries[selected].subEntries[subSelected].position[0];
+                selector.positionDest[1] = menuEntries[selected].subEntries[subSelected].position[1];
+                selector.scaleDest = menuEntries[selected].subEntries[subSelected].scaleDest.slice(0);
+            }
+        }
         selector.animate(elapsed);
+        videoTint.animate(elapsed);
+        //videoPlane.animate(elapsed);
     }
     previousTime = timeNow;
 }
@@ -335,3 +458,9 @@ function drawFrame() {
     window.requestAnimationFrame(drawFrame); //tells browser about the animation we will perform
 }
 
+function lerp(pos, dest, time) {
+    if(pos.length !== dest.length) { return; }
+    for(var i=0; i<pos.length; i++) {
+        pos[i] = pos[i] + time * (dest[i] - pos[i]);
+    }
+}

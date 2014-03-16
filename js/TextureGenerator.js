@@ -80,3 +80,17 @@ function createMenuEntryTexture(gl, menuItem, iconSrc, text) {
 	};
 	file.src = iconSrc;
 }
+
+function createVideoTexture(gl, renderLoc, videoSource) {
+	var vid = document.createElement("video");
+	vid.style.cssText = "display:none;";
+	vid.width = 1280;
+	vid.height = 720;
+	vid.autoplay = true;
+	vid.load();
+	vid.addEventListener("canplaythrough", function() {
+	}, true);
+	vid.src = videoSource;
+
+	vid.play();
+}
