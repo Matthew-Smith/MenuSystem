@@ -1,4 +1,14 @@
+/*! 
+ * @file Selector.js
+ * @author Matthew Smith
+ * @date March 15, 2014
+ * @brief Used for visual feedback of what menu entry is selected
+ */
 function Selector(gl) {
+
+
+    //The "physical" properties of the selector
+    //Dest attributes are used for translating the selector from its current position to another
 	this.scale = [1.0, 1.0, 1.0];
 	this.position = [0, 0, 0];
     this.positionDest = [0, 0, 0];
@@ -6,7 +16,6 @@ function Selector(gl) {
     this.color = [0.0, 0.0, 0.0, 1.0];
     this.colorDest = [0.0, 0.0, 0.0, 1.0];
 
-    this.texture = gl.createTexture();
 
 	this.objVertexPositionBuffer;
 	this.objVertexTextureCoordBuffer;
@@ -14,46 +23,66 @@ function Selector(gl) {
 
 	var MoveMatrix = mat4.create();
 
+    /**
+     * Initialize the object buffers of the Selector.
+     * @param gl The GL context to initialize the buffers in
+     */
 	this.initObjectBuffers = function initObjectBuffers(gl) {
 		this.objVertexPositionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.objVertexPositionBuffer);
-        var vertices = [
+        var vertices = [//a list of coordinates corresponding to the vertices of the entry plane
             0.0, 0.0, 0.1,
             0.0, -1.0, 0.1,
             1.0, -1.0, 0.1,
             1.0, 0.0, 0.1,
         ];
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-        this.objVertexPositionBuffer.itemSize = 3; 
-        this.objVertexPositionBuffer.numItems = 4;
+        this.objVertexPositionBuffer.itemSize = 3; //the number of coordinates per entry (vec3)
+        this.objVertexPositionBuffer.numItems = 4; //the number of vertices 
 
         this.objVertexIndexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.objVertexIndexBuffer);
-        var objVertexIndices = [
-            0, 1, 2,
+        var objVertexIndices = [ //the order with which to draw the plane
+            0, 1, 2, // eg. Draw vertex 0, vertex 1 then vertex 2 to complete a triangle
             0, 2, 3,
         ];
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(objVertexIndices), gl.STATIC_DRAW);
-        this.objVertexIndexBuffer.itemSize = 1;
+        this.objVertexIndexBuffer.itemSize = 1; //index of vertices is not grouped
         this.objVertexIndexBuffer.numItems = 6;
 	}
 
+    /**
+     * Used for updating and moving the position, color and scale of the Selector.
+     * Called on every animation frame from the window.
+     * @param elapsedTime the elapsed time after the last animation frame.
+     */
 	this.animate = function animate(elapsedTime) {
-        lerp(this.position, this.positionDest, 0.2);
+        lerp(this.position, this.positionDest, 0.2); //interpolate between position, scale and color
         lerp(this.scale, this.scaleDest, 0.1);
         lerp(this.color, this.colorDest, 0.1);
 	}
 
+    /**
+     * Draw the Selector to the canvas.
+     * @param gl The WebGL context to draw in
+     * @param shaderProgram The GLSL shader to use for drawing the selector
+     * @param pMatrix The Projection matrix being used for the view
+     * @param mvMatrix The model matrix used for moving and scaling the selector
+     */
 	this.draw = function draw(gl, shaderProgram, pMatrix, mvMatrix) {
-        mat4.identity(mvMatrix);
+        mat4.identity(mvMatrix); //reset the matrix
 
+        //Apply the position and scale of the entry to the matrix for rendering
         mat4.translate(mvMatrix, mvMatrix, this.position);
         mat4.scale(mvMatrix, mvMatrix, this.scale);
-        mat4.multiply(mvMatrix, mvMatrix, MoveMatrix);
        
+        //pass the vertex positions of the entry to the shader
         gl.bindBuffer(gl.ARRAY_BUFFER, this.objVertexPositionBuffer);
-        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, this.objVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 
+                this.objVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
+
+        //Apply the uniform values to the matrix
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.objVertexIndexBuffer);
         gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
         gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);

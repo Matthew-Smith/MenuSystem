@@ -1,3 +1,14 @@
+/*! 
+ * @file TextureGenerator.js
+ * @author Matthew Smith
+ * @date March 15, 2014
+ * @brief Helper functions for generating GL textures from canvas elements
+ */
+
+//easier to access variables to change how the textures are drawn
+var backgroundColor = "#555555" 
+var fontColor = "#FFFFFF"
+
 /**
  * Creates an image only icon from the passed source using the textureCanvas element.
  * @param gl The webGL context to create the texture in
@@ -10,11 +21,11 @@ function createSubMenuIconTexture(gl, menuItem, iconSrc) {
 	var context = canvas.getContext("2d");
 	canvas.width = 55;
 	canvas.height = 55;
-	context.fillStyle = "#777777"
+	context.fillStyle = backgroundColor;
 	context.fillRect(0, 0, canvas.width, canvas.height);
 
 	var file = new Image();
-	file.onload = function() {
+	file.onload = function() { //load the image then draw and load it into the menu item
 		context.drawImage(file, canvas.width/2-file.width/2,canvas.height/2-file.height/2);
 		menuItem.handleLoadedTexture(gl, canvas);
 	};
@@ -31,20 +42,21 @@ function createSubMenuTexture(gl, menuItem, text) {
 	canvas.style.cssText = "display:none;";
 	var context = canvas.getContext("2d");
 
-	canvas.width = 120;
-	canvas.height = 30;
-	context.fillStyle = "#777777"
+	canvas.width = 240;
+	canvas.height = 60;
+	context.fillStyle = backgroundColor;
 	context.fillRect(0, 0, canvas.width, canvas.height);
 
-	context.fillStyle = "#FFFFFF"; 	// This determines the text colour, it can take a hex value or rgba value (e.g. rgba(255,0,0,0.5))
-	context.textAlign = "center";	// This determines the alignment of text, e.g. left, center, right
-	context.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
-	var fontSize = 14;
+	context.fillStyle = fontColor;
+	context.textAlign = "center";
+	context.textBaseline = "middle";	
+	var fontSize = 28;
 	context.font = "bold "+fontSize+"px monospace";	// This determines the size of the text and the font family used
 
-	context.fillText(text, canvas.width/2,canvas.height/2);
+	context.fillText(text, canvas.width/2,canvas.height/2); //write the text to the canvas
 
-	menuItem.handleLoadedTexture(gl, canvas);
+	//no need to wait for any pictures, use the canvas as a texture right away
+	menuItem.handleLoadedTexture(gl, canvas); 
 }
 
 /**
@@ -59,38 +71,25 @@ function createMenuEntryTexture(gl, menuItem, iconSrc, text) {
 
 	var context = canvas.getContext("2d");
 
-	canvas.width = 120;
-	canvas.height = 90;
-	context.fillStyle = "#777777"
+	canvas.width = 240;
+	canvas.height = 180;
+	context.fillStyle = backgroundColor;
 	context.fillRect(0, 0, canvas.width, canvas.height);
 	
-	context.fillStyle = "#FFFFFF";
+	context.fillStyle = fontColor;
 	context.textAlign = "center";
 	context.textBaseline = "bottom";
-	var fontSize = 16;
+	var fontSize = 28;
 	context.font = "bold "+fontSize+"px monospace";
 
 	context.fillText(text, canvas.width/2,canvas.height-fontSize/2);
 
 	var file = new Image();
 	file.crossOrigin = "";
-	file.onload = function() {
-		context.drawImage(file, canvas.width/2-file.width/2,canvas.height/2-file.height*3/4);
+	file.onload = function() {//load the image then draw and load it into the menu item
+		context.drawImage(file, canvas.width/2-file.width, 
+							canvas.height/2-file.height*1.5, file.width*2, file.height*2);
 		menuItem.handleLoadedTexture(gl, canvas);
 	};
 	file.src = iconSrc;
-}
-
-function createVideoTexture(gl, renderLoc, videoSource) {
-	var vid = document.createElement("video");
-	vid.style.cssText = "display:none;";
-	vid.width = 1280;
-	vid.height = 720;
-	vid.autoplay = true;
-	vid.load();
-	vid.addEventListener("canplaythrough", function() {
-	}, true);
-	vid.src = videoSource;
-
-	vid.play();
 }

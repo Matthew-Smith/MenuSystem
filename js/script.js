@@ -4,7 +4,7 @@
  * @date March 15, 2014
  * @ref http://www.script-tutorials.com/twisting-images-webgl/
  * @brief Used the Rotating images tutorial on script-tutorials.com 
- *          as a starting point for a tile based menu system
+ *          as a starting point for the menu system
  */
 
 var gl; // global WebGL object
@@ -74,7 +74,7 @@ function initWebGl() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;   
     try {
-        gl = canvas.getContext("experimental-webgl");
+        gl = canvas.getContext("experimental-webgl"); // set up the GL context
         gl.viewportWidth = canvas.width;
         gl.viewportHeight = canvas.height;
     } catch (e) {} // ignore the exception
@@ -89,10 +89,9 @@ function initWebGl() {
     gl.enable(gl.DEPTH_TEST); //enable depth buffering
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.clearColor(0.1,0.1,0.1,1.0);
-    //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.clearColor(0.5,0.5,0.5,1.0);
 
-    document.onkeydown = handleKeyDown; //set up the keyboard callback
+    document.onkeydown = handleKeyDown; //set up the keyboard callbacks
     document.onkeyup = handleKeyUp;
 
     drawFrame(); //draw the first frame
@@ -171,6 +170,10 @@ function initShaders() {
     selectorProgram.mvMatrixUniform = gl.getUniformLocation(selectorProgram, "uMVMatrix");
 }
 
+/**
+ * Initialize the menu entries with pre-defined images and text.
+ * Calls the Texture creation functions to have dynamic names and icons.
+ */
 function initMenu() {
     var entryNames = ["SETTINGS", "APPS", "MATTHEW", "LIVE TV", "RECORDINGS", "TV SHOWS", "SEARCH"];
     var subEntryNames = [[],["img/netflix.png", "img/youtube.png", "img/facebook.png", "img/twitter.png"],["FAMILY", "ESPIAL","OPTIONS"],["GUIDE", "WHAT'S ON"],
@@ -178,21 +181,23 @@ function initMenu() {
     for(var i=0;i<entryNames.length;i++) {
         menuEntries[i] = new MenuEntry(gl, entryNames[i]);
         menuEntries[i].initObjectBuffers(gl);
-        menuEntries[i].position = [-3.25+i*1.03,-2,-1.0];
+        menuEntries[i].position = [-3.25+i*1.03,-2,-1.0]; //arbitrary values I had to play with to get right
         menuEntries[i].positionDest = [-3.25+i*1.03,-2,-1.0];
 
-        createMenuEntryTexture(gl, menuEntries[i], icon_sources[i], entryNames[i]); 
+        createMenuEntryTexture(gl, menuEntries[i], icon_sources[i], entryNames[i]); //create the texture with an icon and text
 
         if(i == selected) {
             menuEntries[i].selected = true;
         }
         for(var j = 0;j<subEntryNames[i].length;j++) {
-            var sub = new MenuEntry(gl, subEntryNames[i][j]);
-            sub.initObjectBuffers(gl);
-            if(endsWith(subEntryNames[i][j], ".png")) {
+            var sub = new MenuEntry(gl, subEntryNames[i][j]); //init the sub menu entries and their object buffers
+            sub.initObjectBuffers(gl); 
+
+            //Initialize the textures for the menu entries
+            if(endsWith(subEntryNames[i][j], ".png")) { //if it ends with png, it is an image
                 createSubMenuIconTexture(gl, sub, subEntryNames[i][j]);
                 menuEntries[i].addSubEntry(sub, true);
-            } else {
+            } else { //otherwise make it a text entry
                 createSubMenuTexture(gl, sub, subEntryNames[i][j]);
                 menuEntries[i].addSubEntry(sub, false);
             }
@@ -200,6 +205,9 @@ function initMenu() {
     }
 }
 
+/**
+ * Initialize the Selector object buffers, positions, scale and color.
+ */
 function initSelector() {
     selector = new Selector(gl);
     selector.initObjectBuffers(gl);
@@ -207,10 +215,15 @@ function initSelector() {
     selector.positionDest = menuEntries[selected].position.slice(0);
     selector.scale = menuEntries[selected].scale.slice(0);
     selector.scaleDest = menuEntries[selected].scale.slice(0);
-    selector.color = [0.0, 0.7, 0.6, 0.4];
+    selector.color = [0.0, 0.7, 0.6, 0.4]; //set the color of the selector (green-blue)
     selector.colorDest = [0.0, 0.7, 0.6, 0.4];
 }
 
+/**
+ * Initialize the video and the video tint object buffers, positions, etc.
+ * Will load a video from a location defined in this function.
+ * NOTE: VIDEO NOT IMPLEMENTED, displays static image instead
+ */
 function initVideo() {
     videoPlane = new VideoPlane(gl);
     videoPlane.initObjectBuffers(gl);
@@ -232,6 +245,11 @@ function initVideo() {
     videoTint.colorDest = [0.0, 0.0, 0.0, 0.7];
 }
 
+/**
+ * function to check if a string ends with a specifed substring
+ * @param str The string to check
+ * @param suffix The substring to look for
+ */
 function endsWith(str, suffix) {
     return str.indexOf(suffix, str.length - suffix.length) !== -1;
 }
@@ -303,6 +321,9 @@ function handleKeys() {
     }
 }
 
+/**
+ * Helper function used for showing the menu after pressing the m key.
+ */
 function transitionIn() {
     videoTint.colorDest[3]=0.7;
     showMenu = false; //set inactive until it has animated in, this stops the selection from being off
@@ -321,6 +342,9 @@ function transitionIn() {
             
 }
 
+/**
+ * Helper function used for hidng the menu after pressing the m or escape key.
+ */
 function transitionOut() {
     videoTint.colorDest[3]=0.0;
     menuEntries[selected].selected = false; //hide the subMenu as fast as possible
@@ -338,6 +362,9 @@ function transitionOut() {
     transitionTimers[8] = setTimeout(function() { selector.positionDest[1]=-6; }, 1);
 }
 
+/*
+ * Helper for handling key presses (keep the function more readable)
+ */
 function handleDown() {
     if(subSelected>0 && menuEntries[selected].subEntries.length > 0) {
         subSelected -= 1;
@@ -351,6 +378,9 @@ function handleDown() {
     }
 }
 
+/*
+ * Helper for handling key presses (keep the function more readable)
+ */
 function handleUp() {
     if(subSelected<menuEntries[selected].subEntries.length-1 && menuEntries[selected].subEntries.length > 0) {
         subSelected += 1;
@@ -358,6 +388,9 @@ function handleUp() {
     } 
 }
 
+/*
+ * Helper for handling key presses (keep the function more readable)
+ */
 function handleLeft() {
     if(selected>0) {
         menuEntries[selected].selected = false;
@@ -366,16 +399,19 @@ function handleLeft() {
         selector.scaleDest = menuEntries[selected].scale.slice(0);
         menuEntries[selected].selected = true;
 
-        for(var i=selected+1; i<menuEntries.length; i++) {
+        for(var i=selected+1; i<menuEntries.length; i++) {//bounce the left entries a bit
             bounce(i, -0.4);
         }
-        bounce(selected,0.1);
-        for(var i=selected-1; i>=0; i--) {
+        bounce(selected,0.1);//the newly selected entry a little bit
+        for(var i=selected-1; i>=0; i--) {//the previously selected entry and each one after it a lot
             bounce(i, 0.2);
         }
     } 
 }
 
+/*
+ * Helper for handling key presses (keep the function more readable)
+ */
 function handleRight() {
     if(selected<menuEntries.length-1) {
         menuEntries[selected].selected = false;
@@ -384,65 +420,70 @@ function handleRight() {
         selector.scaleDest = menuEntries[selected].scale.slice(0);
         menuEntries[selected].selected = true;
         
-        for(var i=selected+1; i<menuEntries.length; i++) {
+        for(var i=selected+1; i<menuEntries.length; i++) { //bounce the right entries a bit
             bounce(i, -0.2);
         }
-        bounce(selected, -0.1);
-        for(var i=selected-1; i>=0; i--) {
+        bounce(selected, -0.1); //the newly selected entry a little bit
+        for(var i=selected-1; i>=0; i--) { //the previously selected entry and each one after it a lot
             bounce(i, 0.4);
         }
     } 
 }
 
+/**
+ * Helper function pushes the menu entry at i value amount and sets a timer to bring it back again
+ * @param i The index of the menu entry to bounce
+ * @param value The amount to bounce the entry
+ */
 function bounce(i, value) {
         menuEntries[i].positionDest[0] += -value;
         setTimeout(function() { menuEntries[i].positionDest[0] +=value; }, 200);
 }
 
 /**
- *
+ * Calls the draw functions on each drawable object. also clears the buffers and sets the projection matrix
  */
 function drawScene() {
     gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.useProgram(shaderProgram);
-    mat4.ortho(pMatrix, -5, 5, -3.375, 3.375, -1, 100); 
+    gl.useProgram(shaderProgram); //reset the regular shader for use
+    mat4.ortho(pMatrix, -5, 5, -3.375, 3.375, -1, 100); //orthogonal view makes sense for menus
 
-    videoPlane.draw(gl, shaderProgram, pMatrix, mvMatrix);
+    videoPlane.draw(gl, shaderProgram, pMatrix, mvMatrix); 
 
     for (var i=0;i<menuEntries.length;i++) { 
         menuEntries[i].draw(gl, shaderProgram, pMatrix, mvMatrix);
     }
-    gl.useProgram(selectorProgram);
+    gl.useProgram(selectorProgram); //use the different shader for the selector items as they have no textures
     videoTint.draw(gl, selectorProgram, pMatrix, mvMatrix);
     selector.draw(gl, selectorProgram, pMatrix, mvMatrix); 
 }
 
 /**
- * Used for updating the position of the scene while animating between selections.
+ * Used for updating the position of every value in the scene while animating between selections.
  */
 function animate() {
     var timeNow = new Date().getTime();
     if (previousTime != 0) {
         var elapsed = timeNow - previousTime;
-        for (var i=0;i<menuEntries.length;i++) {
+        for (var i=0;i<menuEntries.length;i++) { //call each menu entry's animate
             menuEntries[i].animate(elapsed);
         }
-        if(showMenu) {
-            if (subSelected == -1) {
+        if(showMenu) { //only update positions every frame if the menu is showing.
+            if (subSelected == -1) { //non sub-menu item, lock both x and y to meny entry
                 selector.position[0] = menuEntries[selected].position[0];
                 selector.positionDest[0] = menuEntries[selected].position[0];
                 selector.position[1] = menuEntries[selected].positionDest[1];
                 selector.positionDest[1] = menuEntries[selected].position[1];
                 selector.scaleDest = menuEntries[selected].scaleDest.slice(0);
-            } else {
+            } else { //sub-menu entry, no need to lock in y direction
                 selector.positionDest[0] = menuEntries[selected].subEntries[subSelected].position[0];
                 selector.positionDest[1] = menuEntries[selected].subEntries[subSelected].position[1];
                 selector.scaleDest = menuEntries[selected].subEntries[subSelected].scaleDest.slice(0);
             }
         }
-        selector.animate(elapsed);
-        videoTint.animate(elapsed);
+        selector.animate(elapsed); //animate the selector between its destinations
+        videoTint.animate(elapsed); //animate the darkening of the video
         //videoPlane.animate(elapsed);
     }
     previousTime = timeNow;
@@ -450,6 +491,7 @@ function animate() {
 
 /**
  * Draw the scene, the function calls helper methods to handle key presses, drawing and animating.
+ * requests animation frames from the window
  */
 function drawFrame() {
     handleKeys();
@@ -458,9 +500,15 @@ function drawFrame() {
     window.requestAnimationFrame(drawFrame); //tells browser about the animation we will perform
 }
 
+/**
+ * Linear interpolation method for moving between two vectors. pos and dest must be the same to work
+ * @param pos[in|out] Used for calculating its current position and the increment to the destination
+ * @param dest Used for calculating where to go from the current position
+ * @param time Used for calculating how much to move
+ */
 function lerp(pos, dest, time) {
     if(pos.length !== dest.length) { return; }
-    for(var i=0; i<pos.length; i++) {
+    for(var i=0; i<pos.length; i++) { //interpolate for each vector item
         pos[i] = pos[i] + time * (dest[i] - pos[i]);
     }
 }
