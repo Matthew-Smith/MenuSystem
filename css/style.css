@@ -15,8 +15,5 @@ body {
 }
 
 #textureCanvas {
-	fillStyle = "#333333"; 	// This determines the text colour, it can take a hex value or rgba value (e.g. rgba(255,0,0,0.5))
-	textAlign = "center";	// This determines the alignment of text, e.g. left, center, right
-	textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
-	ctx.font = "12px monospace";	// This determines the size of the text and the font family used
+    display:none;
 }
